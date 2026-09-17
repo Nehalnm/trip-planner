@@ -101,3 +101,15 @@ def create_trip(
 
     return new_trip
     
+from typing import List
+
+
+@app.get("/trips", response_model=List[TripResponse])
+def list_my_trips(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    memberships = db.query(TripMember).filter(TripMember.user_id == current_user.id).all()
+    trip_ids = [m.trip_id for m in memberships]
+    trips = db.query(Trip).filter(Trip.id.in_(trip_ids)).all()
+    return trips
