@@ -42,3 +42,6 @@ class TripResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class InviteRequest(BaseModel):
+    email: EmailStr

@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 from database import get_db
 from models import User
 from schemas import UserCreate, UserResponse
+from schemas import TripCreate, TripResponse, InviteRequest
 
 app = FastAPI()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -113,3 +114,39 @@ def list_my_trips(
     trip_ids = [m.trip_id for m in memberships]
     trips = db.query(Trip).filter(Trip.id.in_(trip_ids)).all()
     return trips
+
+@app.post("/trips/{trip_id}/invite", response_model=UserResponse)
+def invite_member(
+    trip_id: uuid.UUID,
+    invite: InviteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Authorization check: is the requester actually part of this trip?
+    requester_membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == current_user.id)
+        .first()
+    )
+    if not requester_membership:
+        raise HTTPException(status_code=403, detail="You are not a member of this trip")
+
+    # Find the user being invited
+    invited_user = db.query(User).filter(User.email == invite.email).first()
+    if not invited_user:
+        raise HTTPException(status_code=404, detail="No user found with that email")
+
+    # Prevent duplicate membership
+    existing_membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == invited_user.id)
+        .first()
+    )
+    if existing_membership:
+        raise HTTPException(status_code=400, detail="User is already a member of this trip")
+
+    new_membership = TripMember(trip_id=trip_id, user_id=invited_user.id)
+    db.add(new_membership)
+    db.commit()
+
+    return invited_user
