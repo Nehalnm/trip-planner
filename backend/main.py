@@ -71,3 +71,33 @@ def get_current_user(
 @app.get("/me", response_model=UserResponse)
 def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
+
+from models import Trip, TripMember
+from schemas import TripCreate, TripResponse
+
+
+@app.post("/trips", response_model=TripResponse)
+def create_trip(
+    trip: TripCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    new_trip = Trip(
+        name=trip.name,
+        start_date=trip.start_date,
+        end_date=trip.end_date,
+        created_by=current_user.id,
+    )
+    db.add(new_trip)
+    db.commit()
+    db.refresh(new_trip)
+
+    creator_membership = TripMember(
+        trip_id=new_trip.id,
+        user_id=current_user.id,
+    )
+    db.add(creator_membership)
+    db.commit()
+
+    return new_trip
+    

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 import uuid
-
+from datetime import date
+from typing import Optional
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -24,3 +25,20 @@ class LoginRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class TripCreate(BaseModel):
+    name: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+
+
+class TripResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    created_by: uuid.UUID
+
+    class Config:
+        from_attributes = True
