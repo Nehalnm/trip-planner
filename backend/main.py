@@ -159,3 +159,22 @@ def invite_member(
     db.commit()
 
     return invited_user
+
+@app.get("/trips/{trip_id}/members", response_model=List[UserResponse])
+def get_trip_members(
+    trip_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    requester_membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == current_user.id)
+        .first()
+    )
+    if not requester_membership:
+        raise HTTPException(status_code=403, detail="You are not a member of this trip")
+
+    memberships = db.query(TripMember).filter(TripMember.trip_id == trip_id).all()
+    user_ids = [m.user_id for m in memberships]
+    members = db.query(User).filter(User.id.in_(user_ids)).all()
+    return members

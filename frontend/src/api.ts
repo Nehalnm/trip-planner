@@ -64,3 +64,30 @@ export async function createTrip(name: string, startDate: string, endDate: strin
 
   return response.json();
 }
+
+export async function getTripMembers(tripId: string) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/members`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch members");
+  }
+
+  return response.json();
+}
+
+export async function inviteMember(tripId: string, email: string) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/invite`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to invite member");
+  }
+
+  return response.json();
+}

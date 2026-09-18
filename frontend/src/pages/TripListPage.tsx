@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { getTrips, createTrip } from "../api";
+import { Link } from "react-router-dom";
 
 interface Trip {
   id: string;
@@ -50,7 +51,8 @@ function TripListPage() {
       <ul>
         {trips.map((trip) => (
           <li key={trip.id}>
-            {trip.name} {trip.start_date && `(${trip.start_date} → ${trip.end_date})`}
+            <Link to={`/trips/${trip.id}`}>{trip.name}</Link>{" "}
+            {trip.start_date && `(${trip.start_date} → ${trip.end_date})`}
           </li>
         ))}
       </ul>
