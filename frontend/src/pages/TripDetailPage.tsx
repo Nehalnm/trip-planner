@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { getTripMembers, inviteMember } from "../api";
 import { getItinerary, createItineraryItem } from "../api";
+import LiveMap from "../components/LiveMap";
 
 interface Member {
   id: string;
@@ -83,6 +84,7 @@ function TripDetailPage() {
   return (
     <div>
       <h1>Trip Members</h1>
+      {tripId && <LiveMap tripId={tripId} />}
 
       <ul>
         {members.map((member) => (

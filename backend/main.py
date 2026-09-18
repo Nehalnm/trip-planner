@@ -229,3 +229,16 @@ def list_itinerary_items(
         .all()
     )
     return items
+
+from fastapi import WebSocket, WebSocketDisconnect
+from connection_manager import manager
+
+@app.websocket("/ws/trips/{trip_id}/location")
+async def location_websocket(websocket: WebSocket, trip_id: uuid.UUID):
+    await manager.connect(trip_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            await manager.broadcast(trip_id, data, exclude=websocket)
+    except WebSocketDisconnect:
+        manager.disconnect(trip_id, websocket)

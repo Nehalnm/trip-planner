@@ -15,6 +15,14 @@ function LoginPage() {
     try {
       const data = await login(email, password);
       localStorage.setItem("token", data.access_token);
+
+      const meResponse = await fetch("http://localhost:8000/me", {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      });
+      const me = await meResponse.json();
+      localStorage.setItem("userId", me.id);
+      localStorage.setItem("userName", me.name);
+      
       navigate("/trips");
     } catch (err) {
       setError((err as Error).message);
