@@ -91,3 +91,33 @@ export async function inviteMember(tripId: string, email: string) {
 
   return response.json();
 }
+
+export async function getItinerary(tripId: string) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/itinerary`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch itinerary");
+  return response.json();
+}
+
+export async function createItineraryItem(
+  tripId: string,
+  title: string,
+  scheduledAt: string,
+  notes: string
+) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/itinerary`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      title,
+      scheduled_at: scheduledAt || null,
+      notes: notes || null,
+    }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to create itinerary item");
+  }
+  return response.json();
+}

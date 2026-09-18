@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr
 import uuid
 from datetime import date
 from typing import Optional
+from datetime import datetime
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -45,3 +46,19 @@ class TripResponse(BaseModel):
 
 class InviteRequest(BaseModel):
     email: EmailStr
+
+class ItineraryItemCreate(BaseModel):
+    title: str
+    scheduled_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class ItineraryItemResponse(BaseModel):
+    id: uuid.UUID
+    trip_id: uuid.UUID
+    title: str
+    scheduled_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True

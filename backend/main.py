@@ -178,3 +178,54 @@ def get_trip_members(
     user_ids = [m.user_id for m in memberships]
     members = db.query(User).filter(User.id.in_(user_ids)).all()
     return members
+
+from models import ItineraryItem
+from schemas import ItineraryItemCreate, ItineraryItemResponse
+
+
+def check_trip_membership(trip_id: uuid.UUID, current_user: User, db: Session):
+    membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == current_user.id)
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=403, detail="You are not a member of this trip")
+
+
+@app.post("/trips/{trip_id}/itinerary", response_model=ItineraryItemResponse)
+def create_itinerary_item(
+    trip_id: uuid.UUID,
+    item: ItineraryItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    new_item = ItineraryItem(
+        trip_id=trip_id,
+        title=item.title,
+        scheduled_at=item.scheduled_at,
+        notes=item.notes,
+    )
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    return new_item
+
+
+@app.get("/trips/{trip_id}/itinerary", response_model=List[ItineraryItemResponse])
+def list_itinerary_items(
+    trip_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    items = (
+        db.query(ItineraryItem)
+        .filter(ItineraryItem.trip_id == trip_id)
+        .order_by(ItineraryItem.scheduled_at)
+        .all()
+    )
+    return items

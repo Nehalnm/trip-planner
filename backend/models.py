@@ -2,6 +2,7 @@ from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import Column, String, Boolean, Date, ForeignKey
 from sqlalchemy.orm import relationship
+from sqlalchemy import DateTime, Text
 import uuid
 
 from database import Base
@@ -37,3 +38,12 @@ class TripMember(Base):
 
     trip = relationship("Trip", back_populates="members")
     user = relationship("User")
+
+class ItineraryItem(Base):
+    __tablename__ = "itinerary_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trip_id = Column(UUID(as_uuid=True), ForeignKey("trips.id"), nullable=False)
+    title = Column(String, nullable=False)
+    scheduled_at = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
