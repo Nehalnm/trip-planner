@@ -29,3 +29,38 @@ export async function login(email: string, password: string) {
 
   return response.json();
 }
+
+function authHeaders() {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+export async function getTrips() {
+  const response = await fetch(`${API_BASE_URL}/trips`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch trips");
+  }
+
+  return response.json();
+}
+
+export async function createTrip(name: string, startDate: string, endDate: string) {
+  const response = await fetch(`${API_BASE_URL}/trips`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ name, start_date: startDate || null, end_date: endDate || null }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to create trip");
+  }
+
+  return response.json();
+}
