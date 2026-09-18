@@ -13,7 +13,8 @@ function LiveMap({ tripId }: { tripId: string }) {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(`ws://localhost:8000/ws/trips/${tripId}/location`);
+    const token = localStorage.getItem("token");
+    const ws = new WebSocket(`ws://localhost:8000/ws/trips/${tripId}/location?token=${token}`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from fastapi import WebSocket, WebSocketDisconnect, Query
 
 from database import get_db
 from models import User
@@ -234,7 +235,32 @@ from fastapi import WebSocket, WebSocketDisconnect
 from connection_manager import manager
 
 @app.websocket("/ws/trips/{trip_id}/location")
-async def location_websocket(websocket: WebSocket, trip_id: uuid.UUID):
+async def location_websocket(
+    websocket: WebSocket,
+    trip_id: uuid.UUID,
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    payload = decode_access_token(token)
+    if payload is None:
+        await websocket.close(code=1008)
+        return
+
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
+    if user is None:
+        await websocket.close(code=1008)
+        return
+
+    membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == user.id)
+        .first()
+    )
+    if not membership:
+        await websocket.close(code=1008)
+        return
+
     await manager.connect(trip_id, websocket)
     try:
         while True:
