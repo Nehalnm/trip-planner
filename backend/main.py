@@ -106,6 +106,7 @@ def create_trip(
     creator_membership = TripMember(
         trip_id=new_trip.id,
         user_id=current_user.id,
+        role="admin",
     )
     db.add(creator_membership)
     db.commit()
@@ -193,6 +194,17 @@ def check_trip_membership(trip_id: uuid.UUID, current_user: User, db: Session):
     if not membership:
         raise HTTPException(status_code=403, detail="You are not a member of this trip")
 
+def check_trip_admin(trip_id: uuid.UUID, current_user: User, db: Session):
+    membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == current_user.id)
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=403, detail="You are not a member of this trip")
+    if membership.role != "admin":
+        raise HTTPException(status_code=403, detail="Only trip admins can perform this action")
+    return membership
 
 @app.post("/trips/{trip_id}/itinerary", response_model=ItineraryItemResponse)
 def create_itinerary_item(
@@ -364,3 +376,28 @@ def get_settlement(
             j += 1
 
     return transactions
+
+@app.delete("/trips/{trip_id}/members/{user_id}")
+def remove_member(
+    trip_id: uuid.UUID,
+    user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_admin(trip_id, current_user, db)
+
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Admins cannot remove themselves")
+
+    membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == user_id)
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="This user is not a member of the trip")
+
+    db.delete(membership)
+    db.commit()
+
+    return {"detail": "Member removed successfully"}

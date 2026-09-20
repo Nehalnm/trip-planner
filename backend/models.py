@@ -36,7 +36,8 @@ class TripMember(Base):
     trip_id = Column(UUID(as_uuid=True), ForeignKey("trips.id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     sharing_location = Column(Boolean, default=False)
-
+    role = Column(String, default="member", nullable=False)
+    
     trip = relationship("Trip", back_populates="members")
     user = relationship("User")
 
