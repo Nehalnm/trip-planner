@@ -8,6 +8,8 @@ from models import User
 from schemas import UserCreate, UserResponse
 from schemas import TripCreate, TripResponse, InviteRequest
 from models import Notification
+from models import Poll, PollVote
+from schemas import PollCreate, PollResponse, VoteRequest, PollResults
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -541,3 +543,139 @@ async def chat_websocket(
             await chat_manager.broadcast(trip_id, broadcast_data)
     except WebSocketDisconnect:
         chat_manager.disconnect(trip_id, websocket)
+
+def compute_poll_results(poll_id: uuid.UUID, db: Session) -> PollResults:
+    poll = db.query(Poll).filter(Poll.id == poll_id).first()
+    votes = db.query(PollVote).filter(PollVote.poll_id == poll_id).all()
+
+    vote_counts = [0] * len(poll.options)
+    for vote in votes:
+        vote_counts[vote.option_index] += 1
+
+    return PollResults(
+        poll_id=poll.id,
+        question=poll.question,
+        options=poll.options,
+        vote_counts=vote_counts,
+        total_votes=len(votes),
+    )
+
+
+@app.post("/trips/{trip_id}/polls", response_model=PollResponse)
+def create_poll(
+    trip_id: uuid.UUID,
+    poll: PollCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    if len(poll.options) < 2:
+        raise HTTPException(status_code=400, detail="A poll needs at least 2 options")
+
+    new_poll = Poll(
+        trip_id=trip_id,
+        question=poll.question,
+        options=poll.options,
+        created_by=current_user.id,
+    )
+    db.add(new_poll)
+    db.commit()
+    db.refresh(new_poll)
+    return new_poll
+
+
+@app.get("/trips/{trip_id}/polls", response_model=List[PollResponse])
+def list_polls(
+    trip_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+    return db.query(Poll).filter(Poll.trip_id == trip_id).all()
+
+
+@app.get("/polls/{poll_id}/results", response_model=PollResults)
+def get_poll_results(
+    poll_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    poll = db.query(Poll).filter(Poll.id == poll_id).first()
+    if not poll:
+        raise HTTPException(status_code=404, detail="Poll not found")
+
+    check_trip_membership(poll.trip_id, current_user, db)
+    return compute_poll_results(poll_id, db)
+
+poll_manager = ConnectionManager()
+
+
+@app.post("/polls/{poll_id}/vote")
+async def vote_on_poll(
+    poll_id: uuid.UUID,
+    vote: VoteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    poll = db.query(Poll).filter(Poll.id == poll_id).first()
+    if not poll:
+        raise HTTPException(status_code=404, detail="Poll not found")
+
+    check_trip_membership(poll.trip_id, current_user, db)
+
+    if vote.option_index < 0 or vote.option_index >= len(poll.options):
+        raise HTTPException(status_code=400, detail="Invalid option index")
+
+    existing_vote = (
+        db.query(PollVote)
+        .filter(PollVote.poll_id == poll_id, PollVote.user_id == current_user.id)
+        .first()
+    )
+    if existing_vote:
+        existing_vote.option_index = vote.option_index
+    else:
+        new_vote = PollVote(poll_id=poll_id, user_id=current_user.id, option_index=vote.option_index)
+        db.add(new_vote)
+
+    db.commit()
+
+    results = compute_poll_results(poll_id, db)
+    await poll_manager.broadcast(poll.trip_id, results.model_dump(mode="json"))
+
+    return results
+
+
+@app.websocket("/ws/trips/{trip_id}/polls")
+async def poll_websocket(
+    websocket: WebSocket,
+    trip_id: uuid.UUID,
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    payload = decode_access_token(token)
+    if payload is None:
+        await websocket.close(code=1008)
+        return
+
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
+    if user is None:
+        await websocket.close(code=1008)
+        return
+
+    membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == user.id)
+        .first()
+    )
+    if not membership:
+        await websocket.close(code=1008)
+        return
+
+    await poll_manager.connect(trip_id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        poll_manager.disconnect(trip_id, websocket)

@@ -113,3 +113,30 @@ class ChatMessageResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class PollCreate(BaseModel):
+    question: str
+    options: list[str]
+
+
+class PollResponse(BaseModel):
+    id: uuid.UUID
+    trip_id: uuid.UUID
+    question: str
+    options: list[str]
+    created_by: uuid.UUID
+
+    class Config:
+        from_attributes = True
+
+
+class VoteRequest(BaseModel):
+    option_index: int
+
+
+class PollResults(BaseModel):
+    poll_id: uuid.UUID
+    question: str
+    options: list[str]
+    vote_counts: list[int]
+    total_votes: int

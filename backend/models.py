@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, Boolean, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy import DateTime, Text
 from sqlalchemy import Float
+from sqlalchemy import Column, String, Boolean, Date, ForeignKey, DateTime, Text, Float, JSON, Integer
 import uuid
 
 from datetime import datetime
@@ -87,3 +88,21 @@ class ChatMessage(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+class Poll(Base):
+    __tablename__ = "polls"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trip_id = Column(UUID(as_uuid=True), ForeignKey("trips.id"), nullable=False)
+    question = Column(String, nullable=False)
+    options = Column(JSON, nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+
+class PollVote(Base):
+    __tablename__ = "poll_votes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    poll_id = Column(UUID(as_uuid=True), ForeignKey("polls.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    option_index = Column(Integer, nullable=False)

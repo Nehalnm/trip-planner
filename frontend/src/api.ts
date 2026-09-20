@@ -159,3 +159,45 @@ export async function getChatHistory(tripId: string) {
   if (!response.ok) throw new Error("Failed to fetch messages");
   return response.json();
 }
+
+export async function createPoll(tripId: string, question: string, options: string[]) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/polls`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ question, options }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to create poll");
+  }
+  return response.json();
+}
+
+export async function getPolls(tripId: string) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/polls`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch polls");
+  return response.json();
+}
+
+export async function getPollResults(pollId: string) {
+  const response = await fetch(`${API_BASE_URL}/polls/${pollId}/results`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch results");
+  return response.json();
+}
+
+export async function voteOnPoll(pollId: string, optionIndex: number) {
+  const response = await fetch(`${API_BASE_URL}/polls/${pollId}/vote`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ option_index: optionIndex }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to vote");
+  }
+  return response.json();
+}

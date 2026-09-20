@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { getTripMembers, inviteMember, getItinerary, createItineraryItem, createExpense, getSettlement } from "../api";
 import LiveMap from "../components/LiveMap";
 import ChatBox from "../components/ChatBox";
+import PollBox from "../components/PollBox";
 
 interface Member {
   id: string;
@@ -137,6 +138,9 @@ function TripDetailPage() {
 
       <h2>Trip Chat</h2>
       {tripId && <ChatBox tripId={tripId} />}
+
+      <h2>Polls</h2>
+      {tripId && <PollBox tripId={tripId} />}
 
       <ul>
         {members.map((member) => (
