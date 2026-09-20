@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { getTripMembers, inviteMember } from "../api";
-import { getItinerary, createItineraryItem } from "../api";
+import { getTripMembers, inviteMember, getItinerary, createItineraryItem, createExpense, getSettlement } from "../api";
 import LiveMap from "../components/LiveMap";
 
 interface Member {
@@ -15,7 +14,13 @@ interface ItineraryItem {
   scheduled_at: string | null;
   notes: string | null;
 }
-
+interface SettlementTransaction {
+  from_user_id: string;
+  from_name: string;
+  to_user_id: string;
+  to_name: string;
+  amount: number;
+}
 function TripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
   const [members, setMembers] = useState<Member[]>([]);
@@ -25,10 +30,15 @@ function TripDetailPage() {
   const [itemTitle, setItemTitle] = useState("");
   const [itemDate, setItemDate] = useState("");
   const [itemNotes, setItemNotes] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseDescription, setExpenseDescription] = useState("");
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [settlement, setSettlement] = useState<SettlementTransaction[]>([]);
 
   useEffect(() => {
     loadMembers();
     loadItinerary();
+    loadSettlement();
   }, [tripId]);
 
   async function loadMembers() {
@@ -81,6 +91,44 @@ function TripDetailPage() {
     }
   }
 
+  async function loadSettlement() {
+    if (!tripId) return;
+    try {
+      const data = await getSettlement(tripId);
+      setSettlement(data);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+  function toggleParticipant(userId: string) {
+    setSelectedParticipants((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  }
+
+  async function handleCreateExpense(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!tripId) return;
+
+    try {
+      await createExpense(
+        tripId,
+        parseFloat(expenseAmount),
+        expenseDescription,
+        selectedParticipants
+      );
+      setExpenseAmount("");
+      setExpenseDescription("");
+      setSelectedParticipants([]);
+      loadSettlement();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
   return (
     <div>
       <h1>Trip Members</h1>
@@ -117,6 +165,49 @@ function TripDetailPage() {
           </li>
         ))}
       </ul>
+
+      <h2>Add Expense</h2>
+      <form onSubmit={handleCreateExpense}>
+        <input
+          type="number"
+          placeholder="Amount"
+          value={expenseAmount}
+          onChange={(e) => setExpenseAmount(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Description"
+          value={expenseDescription}
+          onChange={(e) => setExpenseDescription(e.target.value)}
+        />
+        <div>
+          <p>Select Participants:</p>
+          {members.map((member) => (
+            <label key={member.id}>
+              <input
+                type="checkbox"
+                checked={selectedParticipants.includes(member.id)}
+                onChange={() => toggleParticipant(member.id)}
+              />
+              {member.name}
+            </label>
+          ))}
+        </div>
+        <button type="submit">Add Expense</button>
+      </form>
+      
+      <h2>Settlement</h2>
+      {settlement.length === 0 ? (
+        <p>All settled up!</p>
+      ) : (
+        <ul>
+          {settlement.map((tx, idx) => (
+            <li key={idx}>
+              {tx.from_name} owes {tx.to_name}: ${tx.amount.toFixed(2)}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <h3>Add Itinerary Item</h3>
       <form onSubmit={handleCreateItem}>

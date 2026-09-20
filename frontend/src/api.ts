@@ -121,3 +121,33 @@ export async function createItineraryItem(
   }
   return response.json();
 }
+
+export async function createExpense(
+  tripId: string,
+  amount: number,
+  description: string,
+  participantIds: string[]
+) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/expenses`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      amount,
+      description,
+      participant_ids: participantIds,
+    }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to create expense");
+  }
+  return response.json();
+}
+
+export async function getSettlement(tripId: string) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/settlement`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch settlement");
+  return response.json();
+}
