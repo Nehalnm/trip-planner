@@ -5,6 +5,7 @@ import LiveMap from "../components/LiveMap";
 import ChatBox from "../components/ChatBox";
 import PollBox from "../components/PollBox";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
+import PhotoGallery from "../components/PhotoGallery";
 
 interface Member {
   id: string;
@@ -139,6 +140,9 @@ function TripDetailPage() {
 
       <h2>Polls</h2>
       {tripId && <PollBox tripId={tripId} />}
+
+      <h2>Trip Photos</h2>
+      {tripId && <PhotoGallery tripId={tripId} />}
 
       <ul>
         {members.map((member) => (

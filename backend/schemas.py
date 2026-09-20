@@ -157,3 +157,13 @@ class TripAnalytics(BaseModel):
     total_spent: float
     by_category: list[CategoryBreakdown]
     by_person: list[PersonBreakdown]
+
+class PhotoResponse(BaseModel):
+    id: uuid.UUID
+    trip_id: uuid.UUID
+    uploaded_by: uuid.UUID
+    filename: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

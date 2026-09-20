@@ -212,3 +212,30 @@ export async function getTripAnalytics(tripId: string) {
   return response.json();
 }
 
+export async function uploadPhoto(tripId: string, file: File) {
+  const token = localStorage.getItem("token");
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/photos`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Failed to upload photo");
+  }
+  return response.json();
+}
+
+export async function getPhotos(tripId: string) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/photos`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch photos");
+  return response.json();
+}

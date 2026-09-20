@@ -708,3 +708,59 @@ def get_trip_analytics(
         by_person.append(PersonBreakdown(user_id=user_id, name=user.name, total_paid=total))
 
     return TripAnalytics(total_spent=total_spent, by_category=by_category, by_person=by_person)
+
+from fastapi import UploadFile, File
+from models import Photo
+from schemas import PhotoResponse
+import shutil
+import os
+
+UPLOAD_DIR = "uploads"
+
+
+@app.post("/trips/{trip_id}/photos", response_model=PhotoResponse)
+def upload_photo(
+    trip_id: uuid.UUID,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    new_photo = Photo(
+        trip_id=trip_id,
+        uploaded_by=current_user.id,
+        filename=unique_filename,
+    )
+    db.add(new_photo)
+    db.commit()
+    db.refresh(new_photo)
+
+    return new_photo    
+
+from fastapi.responses import FileResponse
+
+
+@app.get("/trips/{trip_id}/photos", response_model=List[PhotoResponse])
+def list_photos(
+    trip_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+    return db.query(Photo).filter(Photo.trip_id == trip_id).order_by(Photo.created_at.desc()).all()
+
+
+@app.get("/photos/{filename}")
+def get_photo_file(filename: str):
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Photo not found")
+    return FileResponse(file_path)
