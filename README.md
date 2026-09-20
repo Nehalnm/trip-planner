@@ -20,7 +20,9 @@ A full-stack group trip planning app — plan a trip together, share live locati
 
 ## Architecture
 
+```
 Browser (React) <--HTTP/WebSocket--> Backend (FastAPI) <--SQL--> PostgreSQL
+```
 
 - Standard REST endpoints handle auth, trips, itinerary, and expenses (request → validate → query/update DB → JSON response)
 - A dedicated WebSocket endpoint (`/ws/trips/{trip_id}/location`) handles live location updates — the backend maintains per-trip "rooms" and broadcasts each update to other connected members in real time
@@ -47,36 +49,47 @@ Rather than settling every individual expense, the app computes each member's **
 
 ### Backend
 
+```bash
 cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
 
 Create `backend/.env`:
 
+```
 DATABASE_URL=postgresql://<user>:<password>@localhost:5432/<dbname>
 SECRET_KEY=<your-secret-key>
+```
 
 Create the database tables:
 
+```bash
 python3 -c "from database import Base, engine; import models; Base.metadata.create_all(engine)"
+```
 
 Run the server:
 
+```bash
 uvicorn main:app --reload
+```
 
 API docs available at `http://localhost:8000/docs`.
 
 ### Frontend
 
+```bash
 cd frontend
 npm install
 npm run dev
+```
 
 App available at `http://localhost:5173`.
 
 ## Project Structure
 
+```
 trip-planner/
 ├── backend/
 │   ├── main.py           # FastAPI app and route definitions
@@ -90,6 +103,7 @@ trip-planner/
         ├── pages/         # Full screens (Login, Signup, TripList, TripDetail)
         ├── components/    # Reusable pieces (LiveMap)
         └── api.ts         # Centralized backend API calls
+```
 
 ## Status
 
