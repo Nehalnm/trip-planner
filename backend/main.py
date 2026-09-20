@@ -7,6 +7,7 @@ from database import get_db
 from models import User
 from schemas import UserCreate, UserResponse
 from schemas import TripCreate, TripResponse, InviteRequest
+from models import Notification
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -159,6 +160,13 @@ def invite_member(
     new_membership = TripMember(trip_id=trip_id, user_id=invited_user.id)
     db.add(new_membership)
     db.commit()
+
+    create_notification(
+        user_id=invited_user.id,
+        message=f"You were added to a trip",
+        db=db,
+        trip_id=trip_id,
+    )
 
     return invited_user
 
@@ -401,3 +409,44 @@ def remove_member(
     db.commit()
 
     return {"detail": "Member removed successfully"}
+
+def create_notification(user_id: uuid.UUID, message: str, db: Session, trip_id: uuid.UUID = None):
+    notification = Notification(user_id=user_id, trip_id=trip_id, message=message)
+    db.add(notification)
+    db.commit()
+
+from schemas import NotificationResponse
+
+
+@app.get("/notifications", response_model=List[NotificationResponse])
+def get_my_notifications(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    notifications = (
+        db.query(Notification)
+        .filter(Notification.user_id == current_user.id)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+    return notifications
+
+
+@app.post("/notifications/{notification_id}/read")
+def mark_notification_read(
+    notification_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    notification = (
+        db.query(Notification)
+        .filter(Notification.id == notification_id, Notification.user_id == current_user.id)
+        .first()
+    )
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notification.is_read = True
+    db.commit()
+
+    return {"detail": "Marked as read"}
