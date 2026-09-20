@@ -66,6 +66,7 @@ class ItineraryItemResponse(BaseModel):
 class ExpenseCreate(BaseModel):
     amount: float
     description: str
+    category: str = "Other"
     participant_ids: list[uuid.UUID]
 
 
@@ -140,3 +141,19 @@ class PollResults(BaseModel):
     options: list[str]
     vote_counts: list[int]
     total_votes: int
+
+class CategoryBreakdown(BaseModel):
+    category: str
+    total: float
+
+
+class PersonBreakdown(BaseModel):
+    user_id: uuid.UUID
+    name: str
+    total_paid: float
+
+
+class TripAnalytics(BaseModel):
+    total_spent: float
+    by_category: list[CategoryBreakdown]
+    by_person: list[PersonBreakdown]

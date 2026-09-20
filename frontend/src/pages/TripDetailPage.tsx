@@ -4,6 +4,7 @@ import { getTripMembers, inviteMember, getItinerary, createItineraryItem, create
 import LiveMap from "../components/LiveMap";
 import ChatBox from "../components/ChatBox";
 import PollBox from "../components/PollBox";
+import AnalyticsDashboard from "../components/AnalyticsDashboard";
 
 interface Member {
   id: string;
@@ -36,6 +37,7 @@ function TripDetailPage() {
   const [expenseDescription, setExpenseDescription] = useState("");
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [settlement, setSettlement] = useState<SettlementTransaction[]>([]);
+  const [expenseCategory, setExpenseCategory] = useState("Other");
 
   useEffect(() => {
     loadMembers();
@@ -116,14 +118,10 @@ function TripDetailPage() {
     if (!tripId) return;
 
     try {
-      await createExpense(
-        tripId,
-        parseFloat(expenseAmount),
-        expenseDescription,
-        selectedParticipants
-      );
+      await createExpense(tripId, parseFloat(expenseAmount), expenseDescription, expenseCategory, selectedParticipants);
       setExpenseAmount("");
       setExpenseDescription("");
+      setExpenseCategory("Other");
       setSelectedParticipants([]);
       loadSettlement();
     } catch (err) {
@@ -174,7 +172,7 @@ function TripDetailPage() {
         ))}
       </ul>
 
-      <h2>Add Expense</h2>
+<h2>Add Expense</h2>
       <form onSubmit={handleCreateExpense}>
         <input
           type="number"
@@ -188,6 +186,13 @@ function TripDetailPage() {
           value={expenseDescription}
           onChange={(e) => setExpenseDescription(e.target.value)}
         />
+        <select value={expenseCategory} onChange={(e) => setExpenseCategory(e.target.value)}>
+          <option value="Food">Food</option>
+          <option value="Transport">Transport</option>
+          <option value="Accommodation">Accommodation</option>
+          <option value="Activities">Activities</option>
+          <option value="Other">Other</option>
+        </select>
         <div>
           <p>Select Participants:</p>
           {members.map((member) => (
@@ -216,7 +221,8 @@ function TripDetailPage() {
           ))}
         </ul>
       )}
-
+      <h2>Budget Analytics</h2>
+      {tripId && <AnalyticsDashboard tripId={tripId} />}
       <h3>Add Itinerary Item</h3>
       <form onSubmit={handleCreateItem}>
         <input

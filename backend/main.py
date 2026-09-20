@@ -10,6 +10,7 @@ from schemas import TripCreate, TripResponse, InviteRequest
 from models import Notification
 from models import Poll, PollVote
 from schemas import PollCreate, PollResponse, VoteRequest, PollResults
+from schemas import PollCreate, PollResponse, VoteRequest, PollResults, TripAnalytics, CategoryBreakdown, PersonBreakdown
 
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
@@ -312,6 +313,7 @@ def create_expense(
         paid_by=current_user.id,
         amount=expense.amount,
         description=expense.description,
+        category=expense.category,
     )
     db.add(new_expense)
     db.commit()
@@ -679,3 +681,30 @@ async def poll_websocket(
             await websocket.receive_text()
     except WebSocketDisconnect:
         poll_manager.disconnect(trip_id, websocket)
+
+@app.get("/trips/{trip_id}/analytics", response_model=TripAnalytics)
+def get_trip_analytics(
+    trip_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    expenses = db.query(Expense).filter(Expense.trip_id == trip_id).all()
+
+    total_spent = sum(e.amount for e in expenses)
+
+    category_totals: dict = {}
+    for e in expenses:
+        category_totals[e.category] = category_totals.get(e.category, 0) + e.amount
+    by_category = [CategoryBreakdown(category=cat, total=total) for cat, total in category_totals.items()]
+
+    person_totals: dict = {}
+    for e in expenses:
+        person_totals[e.paid_by] = person_totals.get(e.paid_by, 0) + e.amount
+    by_person = []
+    for user_id, total in person_totals.items():
+        user = db.query(User).filter(User.id == user_id).first()
+        by_person.append(PersonBreakdown(user_id=user_id, name=user.name, total_paid=total))
+
+    return TripAnalytics(total_spent=total_spent, by_category=by_category, by_person=by_person)

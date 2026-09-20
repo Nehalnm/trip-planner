@@ -60,6 +60,7 @@ class Expense(Base):
     paid_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     amount = Column(Float, nullable=False)
     description = Column(String, nullable=False)
+    category = Column(String, nullable=False, default="Other")
 
 
 class ExpenseShare(Base):

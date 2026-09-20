@@ -126,6 +126,7 @@ export async function createExpense(
   tripId: string,
   amount: number,
   description: string,
+  category: string,
   participantIds: string[]
 ) {
   const response = await fetch(`${API_BASE_URL}/trips/${tripId}/expenses`, {
@@ -134,6 +135,7 @@ export async function createExpense(
     body: JSON.stringify({
       amount,
       description,
+      category,
       participant_ids: participantIds,
     }),
   });
@@ -201,3 +203,12 @@ export async function voteOnPoll(pollId: string, optionIndex: number) {
   }
   return response.json();
 }
+
+export async function getTripAnalytics(tripId: string) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/analytics`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch analytics");
+  return response.json();
+}
+
