@@ -6,6 +6,7 @@ from sqlalchemy import DateTime, Text
 from sqlalchemy import Float
 import uuid
 
+from datetime import datetime
 from database import Base
 
 
@@ -67,3 +68,13 @@ class ExpenseShare(Base):
     expense_id = Column(UUID(as_uuid=True), ForeignKey("expenses.id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     share_amount = Column(Float, nullable=False)
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    trip_id = Column(UUID(as_uuid=True), ForeignKey("trips.id"), nullable=True)
+    message = Column(String, nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
