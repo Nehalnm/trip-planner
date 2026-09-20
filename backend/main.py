@@ -450,3 +450,94 @@ def mark_notification_read(
     db.commit()
 
     return {"detail": "Marked as read"}
+
+from models import ChatMessage
+from schemas import ChatMessageResponse
+
+
+@app.get("/trips/{trip_id}/messages", response_model=List[ChatMessageResponse])
+def get_chat_history(
+    trip_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    messages = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.trip_id == trip_id)
+        .order_by(ChatMessage.created_at)
+        .all()
+    )
+
+    result = []
+    for msg in messages:
+        sender = db.query(User).filter(User.id == msg.user_id).first()
+        result.append(ChatMessageResponse(
+            id=msg.id,
+            trip_id=msg.trip_id,
+            user_id=msg.user_id,
+            sender_name=sender.name,
+            content=msg.content,
+            created_at=msg.created_at,
+        ))
+
+    return result
+
+from connection_manager import ConnectionManager, manager as location_manager
+
+chat_manager = ConnectionManager()
+
+
+@app.websocket("/ws/trips/{trip_id}/chat")
+async def chat_websocket(
+    websocket: WebSocket,
+    trip_id: uuid.UUID,
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    payload = decode_access_token(token)
+    if payload is None:
+        await websocket.close(code=1008)
+        return
+
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
+    if user is None:
+        await websocket.close(code=1008)
+        return
+
+    membership = (
+        db.query(TripMember)
+        .filter(TripMember.trip_id == trip_id, TripMember.user_id == user.id)
+        .first()
+    )
+    if not membership:
+        await websocket.close(code=1008)
+        return
+
+    await chat_manager.connect(trip_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+
+            new_message = ChatMessage(
+                trip_id=trip_id,
+                user_id=user.id,
+                content=data["content"],
+            )
+            db.add(new_message)
+            db.commit()
+            db.refresh(new_message)
+
+            broadcast_data = {
+                "id": str(new_message.id),
+                "trip_id": str(trip_id),
+                "user_id": str(user.id),
+                "sender_name": user.name,
+                "content": new_message.content,
+                "created_at": new_message.created_at.isoformat(),
+            }
+            await chat_manager.broadcast(trip_id, broadcast_data)
+    except WebSocketDisconnect:
+        chat_manager.disconnect(trip_id, websocket)

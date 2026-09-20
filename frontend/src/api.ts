@@ -151,3 +151,11 @@ export async function getSettlement(tripId: string) {
   if (!response.ok) throw new Error("Failed to fetch settlement");
   return response.json();
 }
+
+export async function getChatHistory(tripId: string) {
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/messages`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch messages");
+  return response.json();
+}

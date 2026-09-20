@@ -102,3 +102,14 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ChatMessageResponse(BaseModel):
+    id: uuid.UUID
+    trip_id: uuid.UUID
+    user_id: uuid.UUID
+    sender_name: str
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { getTripMembers, inviteMember, getItinerary, createItineraryItem, createExpense, getSettlement } from "../api";
 import LiveMap from "../components/LiveMap";
+import ChatBox from "../components/ChatBox";
 
 interface Member {
   id: string;
@@ -133,6 +134,9 @@ function TripDetailPage() {
     <div>
       <h1>Trip Members</h1>
       {tripId && <LiveMap tripId={tripId} />}
+
+      <h2>Trip Chat</h2>
+      {tripId && <ChatBox tripId={tripId} />}
 
       <ul>
         {members.map((member) => (
