@@ -268,3 +268,99 @@ async def location_websocket(
             await manager.broadcast(trip_id, data, exclude=websocket)
     except WebSocketDisconnect:
         manager.disconnect(trip_id, websocket)
+
+from models import Expense, ExpenseShare
+from schemas import ExpenseCreate, ExpenseResponse
+
+
+@app.post("/trips/{trip_id}/expenses", response_model=ExpenseResponse)
+def create_expense(
+    trip_id: uuid.UUID,
+    expense: ExpenseCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    if not expense.participant_ids:
+        raise HTTPException(status_code=400, detail="At least one participant is required")
+
+    new_expense = Expense(
+        trip_id=trip_id,
+        paid_by=current_user.id,
+        amount=expense.amount,
+        description=expense.description,
+    )
+    db.add(new_expense)
+    db.commit()
+    db.refresh(new_expense)
+
+    share_amount = expense.amount / len(expense.participant_ids)
+    for participant_id in expense.participant_ids:
+        db.add(ExpenseShare(
+            expense_id=new_expense.id,
+            user_id=participant_id,
+            share_amount=share_amount,
+        ))
+    db.commit()
+
+    return new_expense
+
+from schemas import Balance, SettlementTransaction
+
+
+@app.get("/trips/{trip_id}/settlement", response_model=List[SettlementTransaction])
+def get_settlement(
+    trip_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    # Step A: compute each user's net balance
+    balances: dict = {}
+
+    expenses = db.query(Expense).filter(Expense.trip_id == trip_id).all()
+    for exp in expenses:
+        balances[exp.paid_by] = balances.get(exp.paid_by, 0) + exp.amount
+
+        shares = db.query(ExpenseShare).filter(ExpenseShare.expense_id == exp.id).all()
+        for share in shares:
+            balances[share.user_id] = balances.get(share.user_id, 0) - share.share_amount
+
+    # Step B: split into creditors (owed money) and debtors (owe money)
+    creditors = [(uid, amt) for uid, amt in balances.items() if amt > 0.01]
+    debtors = [(uid, -amt) for uid, amt in balances.items() if amt < -0.01]
+
+    creditors.sort(key=lambda x: x[1], reverse=True)
+    debtors.sort(key=lambda x: x[1], reverse=True)
+
+    # Step C: greedily match the biggest creditor with the biggest debtor
+    transactions = []
+    i, j = 0, 0
+    while i < len(debtors) and j < len(creditors):
+        debtor_id, debt_amt = debtors[i]
+        creditor_id, credit_amt = creditors[j]
+
+        settled_amount = min(debt_amt, credit_amt)
+
+        debtor_user = db.query(User).filter(User.id == debtor_id).first()
+        creditor_user = db.query(User).filter(User.id == creditor_id).first()
+
+        transactions.append(SettlementTransaction(
+            from_user_id=debtor_id,
+            from_name=debtor_user.name,
+            to_user_id=creditor_id,
+            to_name=creditor_user.name,
+            amount=round(settled_amount, 2),
+        ))
+
+        debtors[i] = (debtor_id, debt_amt - settled_amount)
+        creditors[j] = (creditor_id, credit_amt - settled_amount)
+
+        if debtors[i][1] < 0.01:
+            i += 1
+        if creditors[j][1] < 0.01:
+            j += 1
+
+    return transactions

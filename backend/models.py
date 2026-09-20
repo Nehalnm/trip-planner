@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy import Column, String, Boolean, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy import DateTime, Text
+from sqlalchemy import Float
 import uuid
 
 from database import Base
@@ -47,3 +48,21 @@ class ItineraryItem(Base):
     title = Column(String, nullable=False)
     scheduled_at = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)
+
+class Expense(Base):
+    __tablename__ = "expenses"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trip_id = Column(UUID(as_uuid=True), ForeignKey("trips.id"), nullable=False)
+    paid_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    description = Column(String, nullable=False)
+
+
+class ExpenseShare(Base):
+    __tablename__ = "expense_shares"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    expense_id = Column(UUID(as_uuid=True), ForeignKey("expenses.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    share_amount = Column(Float, nullable=False)

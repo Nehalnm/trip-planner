@@ -62,3 +62,33 @@ class ItineraryItemResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ExpenseCreate(BaseModel):
+    amount: float
+    description: str
+    participant_ids: list[uuid.UUID]
+
+
+class ExpenseResponse(BaseModel):
+    id: uuid.UUID
+    trip_id: uuid.UUID
+    paid_by: uuid.UUID
+    amount: float
+    description: str
+
+    class Config:
+        from_attributes = True
+
+
+class Balance(BaseModel):
+    user_id: uuid.UUID
+    name: str
+    net_balance: float
+
+
+class SettlementTransaction(BaseModel):
+    from_user_id: uuid.UUID
+    from_name: str
+    to_user_id: uuid.UUID
+    to_name: str
+    amount: float
