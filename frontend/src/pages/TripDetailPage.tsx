@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { getTripMembers, inviteMember, getItinerary, createItineraryItem, createExpense, getSettlement } from "../api";
 import LiveMap from "../components/LiveMap";
@@ -6,6 +6,7 @@ import ChatBox from "../components/ChatBox";
 import PollBox from "../components/PollBox";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
 import PhotoGallery from "../components/PhotoGallery";
+import { scanReceipt } from "../api";
 
 interface Member {
   id: string;
@@ -39,7 +40,20 @@ function TripDetailPage() {
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [settlement, setSettlement] = useState<SettlementTransaction[]>([]);
   const [expenseCategory, setExpenseCategory] = useState("Other");
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
+  async function handleScanReceipt(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  if (!file || !tripId) return;
+
+  const result = await scanReceipt(tripId, file);
+
+  if (result.guessed_amount) {
+    setExpenseAmount(result.guessed_amount.toString());
+  }
+
+  if (receiptInputRef.current) receiptInputRef.current.value = "";
+}
   useEffect(() => {
     loadMembers();
     loadItinerary();
@@ -177,13 +191,17 @@ function TripDetailPage() {
       </ul>
 
 <h2>Add Expense</h2>
-      <form onSubmit={handleCreateExpense}>
-        <input
-          type="number"
-          placeholder="Amount"
-          value={expenseAmount}
-          onChange={(e) => setExpenseAmount(e.target.value)}
-        />
+        <form onSubmit={handleCreateExpense}>
+          <div style={{ marginBottom: "8px" }}>
+            <label>Scan a receipt (optional): </label>
+            <input type="file" accept="image/*" ref={receiptInputRef} onChange={handleScanReceipt} />
+          </div>
+          <input
+            type="number"
+            placeholder="Amount"
+            value={expenseAmount}
+            onChange={(e) => setExpenseAmount(e.target.value)}
+          />
         <input
           type="text"
           placeholder="Description"

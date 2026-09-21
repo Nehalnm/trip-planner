@@ -64,6 +64,23 @@ import uuid
 
 security = HTTPBearer()
 
+import re
+
+
+def extract_amount_from_text(text: str) -> float | None:
+    lines = text.split("\n")
+
+    for line in lines:
+        if "total" in line.lower():
+            numbers = re.findall(r"\d+\.\d{2}", line)
+            if numbers:
+                return float(numbers[-1])
+
+    all_numbers = re.findall(r"\d+\.\d{2}", text)
+    if all_numbers:
+        return max(float(n) for n in all_numbers)
+
+    return None
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -764,3 +781,25 @@ def get_photo_file(filename: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Photo not found")
     return FileResponse(file_path)
+
+import pytesseract
+from PIL import Image
+
+
+@app.post("/trips/{trip_id}/scan-receipt")
+def scan_receipt(
+    trip_id: uuid.UUID,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    check_trip_membership(trip_id, current_user, db)
+
+    image = Image.open(file.file)
+    extracted_text = pytesseract.image_to_string(image)
+    guessed_amount = extract_amount_from_text(extracted_text)
+
+    return {
+        "raw_text": extracted_text,
+        "guessed_amount": guessed_amount,
+    }

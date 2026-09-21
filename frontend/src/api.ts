@@ -239,3 +239,20 @@ export async function getPhotos(tripId: string) {
   if (!response.ok) throw new Error("Failed to fetch photos");
   return response.json();
 }
+
+export async function scanReceipt(tripId: string, file: File) {
+  const token = localStorage.getItem("token");
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/trips/${tripId}/scan-receipt`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) throw new Error("Failed to scan receipt");
+  return response.json();
+}
